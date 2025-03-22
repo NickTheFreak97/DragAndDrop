@@ -102,6 +102,11 @@ public struct DragView<Content: View> : View {
                 manager.dropDragView(of: elementID, at: value.translation)
                 isDropped = true
                 dragginStoppedAction?(true)
+            } else {
+                withAnimation(.spring()) {
+                    dragOffset = CGSize.zero
+                }
+                dragginStoppedAction?(false)
             }
         } else {
             withAnimation(.spring()) {
