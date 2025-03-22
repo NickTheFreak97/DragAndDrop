@@ -21,10 +21,11 @@ public struct DragView<Content: View> : View {
     @State private var dragOffset: CGSize = CGSize.zero
     @State private var position: CGPoint = CGPoint.zero
     @State private var isDragging = false
-    @State private var isDroped = false
+    @State private var isDropped = false
     
     private let content: (_ dropInfo: DragInfo) -> Content
     private var dragginStoppedAction: ((_ isSuccessfullDrop: Bool) -> Void)?
+    private var validateDrop: ((CGPoint) -> Bool)?
     private let elementID: UUID
     
     /// Initialize this view with its unique ID and custom view.
@@ -39,11 +40,11 @@ public struct DragView<Content: View> : View {
     }
     
     public var body: some View {
-        if isDroped {
+        if isDropped {
             content(DragInfo(didDrop: true, isDragging: false, isColliding: false)).hidden()
         }
         else{
-            content(DragInfo(didDrop: isDroped, isDragging: isDragging, isColliding: manager.isColliding(dragID: elementID)))
+            content(DragInfo(didDrop: isDropped, isDragging: isDragging, isColliding: manager.isColliding(dragID: elementID)))
                 .offset(dragOffset)
                 .background {
                     GeometryReader { geometry in
@@ -81,6 +82,12 @@ public struct DragView<Content: View> : View {
         return new
     }
     
+    public func validateDropAction(action: @escaping (CGPoint) -> Bool) -> Self {
+        var copy = self
+        copy.validateDrop = action
+        return copy
+    }
+    
     private func onDragChanged(_ value: DragGesture.Value) {
         manager.report(drag: elementID, offset: value.translation)
         
@@ -91,9 +98,11 @@ public struct DragView<Content: View> : View {
     
     private func onDragEnded(_ value: DragGesture.Value) {
         if manager.canDrop(id: elementID, offset: value.translation) {
-            manager.dropDragView(of: elementID, at: value.translation)
-            isDroped = true
-            dragginStoppedAction?(true)
+            if self.validateDrop?(CGPoint(x: value.translation.width, y: value.translation.height)) ?? true {
+                manager.dropDragView(of: elementID, at: value.translation)
+                isDropped = true
+                dragginStoppedAction?(true)
+            }
         } else {
             withAnimation(.spring()) {
                 dragOffset = CGSize.zero
